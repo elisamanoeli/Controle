@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import calendar
 
 # Tradução dos meses para português
 MES_NOMES_PT = [
@@ -8,88 +7,90 @@ MES_NOMES_PT = [
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
 ]
 
-class Associado:
-    def __init__(self, numero, nome, data_entrada):
-        self.numero = numero
-        self.nome = nome
-        self.data_entrada = data_entrada
-        self.pagamentos = []
+# Estilos aplicados diretamente aos campos e ao fundo da página
+st.markdown(
+    """
+    <style>
+    /* Cor de fundo da página */
+    .stApp {
+        background-color: #f0f2f6;
+    }
 
-    def adicionar_pagamento(self, valor, mes_pagamento, ano_pagamento, status):
-        pagamento = {"valor": valor, "mes": mes_pagamento, "ano": int(ano_pagamento), "status": status}
-        self.pagamentos.append(pagamento)
+    /* Cor e estilo dos campos de entrada (input, select, textarea) */
+    div[data-baseweb="input"] > div {
+        background-color: #FFFFFF;
+        border: 2px solid #0B0C45;
+        border-radius: 10px;
+    }
 
-    def verificar_status(self, mes_atual, ano_atual):
-        pagamentos_atrasados = [p for p in self.pagamentos if p['status'] == 'atrasado' and (p['ano'] < ano_atual or (p['ano'] == ano_atual and p['mes'] < mes_atual))]
-        pagamentos_em_negociacao = [p for p in self.pagamentos if p['status'] == 'negociação']
+    div[data-baseweb="select"] > div {
+        background-color: #FFFFFF;
+        border: 2px solid #0B0C45;
+        border-radius: 10px;
+    }
 
-        if pagamentos_atrasados:
-            return 'inadimplente'
-        elif pagamentos_em_negociacao:
-            return 'em negociação'
-        else:
-            return 'adimplente'
+    div[data-baseweb="textarea"] > div {
+        background-color: #FFFFFF;
+        border: 2px solid #0B0C45;
+        border-radius: 10px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
-class SistemaAssociados:
-    def __init__(self):
-        self.associados = []
+# Exibir a imagem do logo no canto esquerdo com tamanho médio
+st.image("logo.png", width=200)
 
-    def cadastrar_associado(self, numero, nome, data_entrada):
-        associado = Associado(numero, nome, data_entrada)
-        self.associados.append(associado)
-        return associado
-
-    def buscar_associado(self, numero_associado):
-        for associado in self.associados:
-            if associado.numero == numero_associado:
-                return associado
-        return None
-
-    def adicionar_pagamento_associado(self, numero_associado, nome_associado, valor, mes_pagamento, ano_pagamento, status):
-        associado = self.buscar_associado(numero_associado)
-        if associado:
-            associado.adicionar_pagamento(valor, mes_pagamento, ano_pagamento, status)
-        else:
-            associado = self.cadastrar_associado(numero_associado, nome_associado, "2023-01-01")
-            associado.adicionar_pagamento(valor, mes_pagamento, ano_pagamento, status)
-
-# Inicializar sistema
-sistema = SistemaAssociados()
-
+# Exibir o título abaixo do logo
 st.title("Cadastro de Associados")
 
-# Campo para número do associado
-numero_associado = st.number_input("Número do Associado", min_value=1, step=1)
+# Inicializar o session_state para a lista de associados
+if 'associados' not in st.session_state:
+    st.session_state['associados'] = []
 
-# Nome do Associado
+# Inicializar o session_state para os campos de entrada, se ainda não existirem
+if 'numero_associado' not in st.session_state:
+    st.session_state['numero_associado'] = 1
+
+# Campo para o número do associado (primeiro campo)
+numero_associado = st.number_input("Número do Associado", min_value=1, step=1, value=st.session_state['numero_associado'])
+
+# Campos para cadastro de associados
 nome = st.text_input("Nome do Associado")
-
-# Dropdown de seleção do mês com o nome dos meses em português
-mes_nome = st.selectbox("Mês", MES_NOMES_PT)  # Lista dos meses em português
-mes = MES_NOMES_PT.index(mes_nome) + 1  # Converter o nome do mês para o número correspondente
-
-# Ano do Pagamento (usando text_input para evitar formatação decimal)
-ano = int(st.text_input("Ano", value="2023"))  # Garantir que o valor seja um número inteiro
-
-# Situação Financeira
+mes_nome = st.selectbox("Mês", MES_NOMES_PT)
+ano = st.text_input("Ano", value="2024")
 situacao = st.selectbox("Situação Financeira", ["pago", "atrasado", "negociação"])
-
-# Valor do Pagamento
 valor = st.number_input("Valor do Pagamento", min_value=0.0, step=0.01)
 
-# Botão para adicionar pagamento
-if st.button("Adicionar Pagamento"):
-    sistema.adicionar_pagamento_associado(numero_associado, nome, valor, mes, ano, situacao)
+# Botão para cadastrar o associado
+if st.button("Cadastrar"):
+    associado = {
+        "numero": numero_associado,
+        "nome": nome,
+        "mes_pagamento": mes_nome,
+        "ano_pagamento": ano,
+        "situacao": situacao,
+        "valor": valor,
+    }
 
-# Exibir tabela de pagamentos
+    # Adiciona o associado à lista no session_state
+    st.session_state['associados'].append(associado)
+
+    # Exibe a mensagem de sucesso
+    st.success(f"Associado {nome} cadastrado com sucesso!")
+
+    # Incrementar o número do associado automaticamente
+    st.session_state['numero_associado'] += 1
+
+# Exibir tabela de associados cadastrados
 data = []
-for associado in sistema.associados:
-    for pagamento in associado.pagamentos:
-        valor_formatado = f"R$ {pagamento['valor']:,.2f}".replace('.', ',')  # Formatar o valor em R$ com vírgula
-        data.append([associado.numero, associado.nome, MES_NOMES_PT[pagamento['mes'] - 1], pagamento['ano'], pagamento['status'], valor_formatado])
+for associado in st.session_state['associados']:
+    valor_formatado = f"R$ {associado['valor']:,.2f}".replace('.', ',')
+    data.append([associado['numero'], associado['nome'], associado['mes_pagamento'], associado['ano_pagamento'], associado['situacao'], valor_formatado])
 
-# Criar DataFrame para exibir a tabela, incluindo a nova coluna "Valor do Pagamento"
-df = pd.DataFrame(data, columns=["Número do Associado", "            Nome do Associado            ", "Mês", "Ano", "Situação", "Valor do Pagamento"])
+# Criar DataFrame para exibir a tabela
+df = pd.DataFrame(data, columns=["Número do Associado", "Nome do Associado", "Mês", "Ano", "Situação", "Valor do Pagamento"])
 
 # Exibir a tabela
 st.write(df)
